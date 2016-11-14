@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
 from heapq import nsmallest
 from Amazon_review import Amazon_review
 from sys import stdout
@@ -25,16 +27,26 @@ def similarity(x, y, colloborative, content_based, verbose):
     pass
     return similarity_score
 
-def find_row_means()
+def find_means(csc, verbose):
+    if verbose:
+        print("Finding Row and Column Means")
+    row_sums = csc.sum(axis=1)
+    # row_counts = csc.count_nonzero() # DOESNT WORK
+    col_sums = csc.sum(axis=0)
+    # col_counts = csc.count_nonzero()
+    row_means = row_sums/row_counts
+    col_means = col_sums/col_counts
+    return row_means, col_means
+
+def read_sparse_file:
+    pass
+
 def main():
     print("Initializing Script")
     print(begin_time)
-    sentiWord_d = read_in_dict('cleaned_senti')
-    trained_d = read_in_dict('training_sent_dict')
-    freq_d = read_in_dict('training_frequency_dict')
 
     # Read in training file
-    print("Creating Training Set")
+    print("")
     training_list = parse_training_set(train_data, sentiWord_d, trained_d, freq_d)
     print("the training file size is {0}".format(len(training_list)))
     min_sentiWord, max_sentiWord, min_learnedWord, max_learnedWord, min_length, max_length = find_max_min(training_list)

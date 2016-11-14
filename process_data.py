@@ -1,7 +1,8 @@
 from pylab import *
 import numpy as np
-from scipy.sparse import coo_matrix, csr_matrix, csc_matrix
+from scipy.sparse import coo_matrix, csr_matrix, csr_matrix
 from sklearn import preprocessing
+from sklearn.metrics import pairwise
 import itertools
 
 
@@ -21,11 +22,9 @@ def file_to_list(file, verbose=False):
         for row in csv:
             # each row is are movie indexes paired with their counts, all separated by spaces
             row_list = row.split(' ')
-            print(row_list)
             user_id = int(row_list[0]) - 1
             movie_id = int(row_list[1]) - 1
             rating = float(row_list[2])
-            print(rating)
             if movie_id > max_movie_count:
                 max_movie_count = movie_id
             movie_freqs[movie_id] += 1
@@ -40,14 +39,13 @@ def file_to_list(file, verbose=False):
 
     return user_list, movie_list, rating_list, movie_freqs
 
-def lists_to_csc(user_list, movie_list, rating_list, verbose):
+def lists_to_csr(user_list, movie_list, rating_list, verbose):
     if verbose:
-        print("in jagged to csc method")
+        print("in jagged to csr method")
     max_movie_index = max(movie_list) + 1
     max_user_index = user_list[len(user_list) - 1] + 1
     if verbose:
         print("maxcolumn: {}".format(max_movie_index))
-        print(" {} \n {} \n {}".format(user_list, movie_list, rating_list))
     coo = create_coo(user_list, movie_list, rating_list, max_user_index, max_movie_index, verbose)
     return csr_matrix(coo)
 
@@ -61,37 +59,60 @@ def create_coo(rows, cols, values, num_rows, num_cols, verbose):
     return sparse_coo
 
 # t = training data, x = test data
-def write_csc_to_disk(csc, fn, verbose):
+def write_csr_to_disk(csr, fn, full_run, verbose):
+    t_row_csr = truncate_csr(csr,True,verbose)   #deletes empty rows
+    t_col_csr = truncate_csr(csr, False, verbose)    # deletes empty cols
+    t_csr = truncate_csr(t_row_csr, False,verbose)  # deleted cols and rows
     if verbose:
-        print('csc file {0} to disk'.format(fn))
-    fn = 'data/' + fn
-    np.savez(fn, data=csc.data, indices=csc.indices, indptr=csc.indptr, shape=csc.shape)
+        print('csr files to disk'.format(fn))
+    dir = 'data/'
+    if not full_run:
+        dir = 'short/'
+    fn = dir + fn
+    fn_r = dir + 'truncated_row_csr'
+    fn_c = dir + 'truncated_col_csr'
+    fn_t = dir +  'truncated_csr'
+    np.savez(fn, data=csr.data, indices=csr.indices, indptr=csr.indptr, shape=csr.shape)
+    np.savez(fn_r, data=t_row_csr.data, indices=t_row_csr.indices, indptr=t_row_csr.indptr, shape=t_row_csr.shape)
+    np.savez(fn_r, data=t_col_csr.data, indices=t_col_csr.indices, indptr=t_col_csr.indptr, shape=t_col_csr.shape)
+    np.savez(fn_r, data=t_row_csr.data, indices=t_csr.indices, indptr=t_csr.indptr, shape=t_csr.shape)
+
+def truncate_csr(csr, row=True, verbose=False):
+    if verbose:
+        print("Truncating csr")
+    if row:
+        truncated_csr = csr[csr.getnnz(1) > 0]
+    else:
+        truncated_csr = csr[:, csr.getnnz(0) > 0]
+
+    if verbose:
+        print("Truncated CSR shape: {}".format(csr.shape))
+
+    return truncated_csr
 
 def write_list_to_disk(dense_bag_of_movies, fn, verbose):
     if verbose:
         print("writing articles to list {}".format(fn))
-    fn = 'data/' + fn
     with open(fn, 'w') as csv:
         for row in dense_bag_of_movies:
             csv.write("{0}\n".format(row))
 
-def create_articles(movie_list, index_csc, verbose):
-    if verbose:
-        print("converting sparse index matrix to articles")
-    bag_of_indexes = index_csc.toarray()
-    bag_of_articles = [''] * bag_of_indexes.shape[0]  # number of rows
-    article_i = 0
-    for article in bag_of_indexes:
-        movies = []  # assuming appending saves space and time instead of instantiating
-        i = 0
-        for movie_count in article:
-            movie = ''
-            if (movie_count > 0):
-                movies.append(str(word_list[i] + ' ') * int(word_count))  # multiple by word count for repeated words
-            i += 1
-        bag_of_articles[article_i] = ("".join(movies))  # convert list of words to string append to bag
-        article_i += 1
-    return bag_of_articles
+# def cosine_similarity(x, y):
+#     sim = metrics.pairwise.cosine_similarity(X,)
+
+# def create_content_similarity_matrix(csr, similarity_type='cosine', verbose):
+#     if verbose:
+#         print("converting sparse index matrix to articles")
+#     if similarity_type == 'cosine':
+#         sim_matrix = pairwise.cosine_similarity(np.transpose(csr)) #makes a
+#     return sim_matrix
+
+# def create_user_similarity_matrix(csr, similarity_type='cosine', verbose):
+#     if verbose:
+#         print("converting sparse index matrix to articles")
+#     if similarity_type == 'cosine':
+#         sim_matrix = pairwise.cosine_similarity(csr) #makes a
+#     return
 
 def get_fns(full_run=True):
     if full_run:
@@ -103,6 +124,7 @@ def get_fns(full_run=True):
         user_tags_fn = 'user_taggedmovies.dat'
         tags_fn = 'tags.dat'
         test_fn = 'test.dat'
+        train_fn = 'rating_csr'
     else:
         short_dir = 'short/'
         rating_fn = short_dir + 'train_short.dat'
@@ -113,13 +135,14 @@ def get_fns(full_run=True):
         user_tags_fn = short_dir + 'user_taggedmovies_short.dat'
         tags_fn = short_dir + 'tags_short.dat'
         test_fn = short_dir + 'test_short.dat'
-    return rating_fn, movie_actors_fn, movie_directors_fn, movie_genres_fn, movie_tags_fn, user_tags_fn, tags_fn, test_fn
+        train_fn = short_dir + 'rating_csr'
+    return rating_fn, movie_actors_fn, movie_directors_fn, movie_genres_fn, movie_tags_fn, user_tags_fn, tags_fn, test_fn, train_fn
 
-def write_means(csc, verbose):
-    csc_row_mean = csc.mean(axis=1)
-    csc_col_mean = csc.mean(axis=0)
-    write_list_to_disk(csc_col_mean, 'column_means.txt', verbose)
-    write_list_to_disk(csc_row_mean, 'row_means.txt', verbose)
+def write_means(csr, verbose):
+    csr_row_mean = csr.sum(axis=1)
+    csr_col_mean = csr.mean(axis=0)
+    write_list_to_disk(csr_col_mean, 'column_means.txt', verbose)
+    write_list_to_disk(csr_row_mean, 'row_means.txt', verbose)
 
 def main():
     verbose = True
@@ -128,27 +151,27 @@ def main():
     if verbose:
         print('starting file')
 
-    rating_fn, movie_actors_fn, movie_directors_fn, movie_genres_fn, movie_tags_fn, user_tags_fn, tags_fn, test_fn = \
+    rating_fn, movie_actors_fn, movie_directors_fn, movie_genres_fn, movie_tags_fn, user_tags_fn, tags_fn, test_fn , output_fn = \
         get_fns(full_run)
     # convert data to lists
     if verbose:
         print("convert data to lists")
     user_list, movie_list, rating_list, movie_freqs = file_to_list(rating_fn, verbose)
 
-    # convert lists to cscs
+    # convert lists to csrs
     if verbose:
-        print("converting index and frequency lists to csc and article lists")
+        print("converting index and frequency lists to csr and article lists")
 
-    rating_csc = lists_to_csc(user_list, movie_list, rating_list, verbose)
+    rating_csr = lists_to_csr(user_list, movie_list, rating_list, verbose)
     # i can use this to create other files
     # if create_articles_file:
-    #     articles = create_articles(feature_list, bag_of_indexes_csc, verbose)
+    #     articles = create_articles(feature_list, bag_of_indexes_csr, verbose)
 
     # write cleaned data to file
     if verbose:
         print("writing processed information to file")
-        # print(rating_csc)
-    write_csc_to_disk(rating_csc, 'rating_csc', verbose)
+        # print(rating_csr)
+    write_csr_to_disk(rating_csr, output_fn, full_run, verbose)
     if frequency_write:
         write_list_to_disk(movie_freqs, 'movie_frequencies.txt', verbose)
 
