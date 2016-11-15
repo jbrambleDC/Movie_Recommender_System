@@ -65,17 +65,17 @@ def write_csr_to_disk(csr, fn, full_run, verbose):
     t_csr = truncate_csr(t_row_csr, False,verbose)  # deleted cols and rows
     if verbose:
         print('csr files to disk'.format(fn))
-    dir = 'data/'
+    dir = 'data/processed/'
     if not full_run:
         dir = 'short/'
     fn = dir + fn
-    fn_r = dir + 'truncated_row_csr'
-    fn_c = dir + 'truncated_col_csr'
-    fn_t = dir +  'truncated_csr'
+    fn_t_r = dir + 'trunc_row_rating_csr'
+    fn_t_c = dir + 'trunc_col_rating_csr'
+    fn_t = dir + 'trunc_rating_csr'
     np.savez(fn, data=csr.data, indices=csr.indices, indptr=csr.indptr, shape=csr.shape)
-    np.savez(fn_r, data=t_row_csr.data, indices=t_row_csr.indices, indptr=t_row_csr.indptr, shape=t_row_csr.shape)
-    np.savez(fn_r, data=t_col_csr.data, indices=t_col_csr.indices, indptr=t_col_csr.indptr, shape=t_col_csr.shape)
-    np.savez(fn_r, data=t_row_csr.data, indices=t_csr.indices, indptr=t_csr.indptr, shape=t_csr.shape)
+    np.savez(fn_t_r, data=t_row_csr.data, indices=t_row_csr.indices, indptr=t_row_csr.indptr, shape=t_row_csr.shape)
+    np.savez(fn_t_c, data=t_col_csr.data, indices=t_col_csr.indices, indptr=t_col_csr.indptr, shape=t_col_csr.shape)
+    np.savez(fn_t, data=t_csr.data, indices=t_csr.indices, indptr=t_csr.indptr, shape=t_csr.shape)
 
 def truncate_csr(csr, row=True, verbose=False):
     if verbose:
@@ -86,7 +86,7 @@ def truncate_csr(csr, row=True, verbose=False):
         truncated_csr = csr[:, csr.getnnz(0) > 0]
 
     if verbose:
-        print("Truncated CSR shape: {}".format(csr.shape))
+        print("Truncated CSR shape: {}".format(truncated_csr.shape))
 
     return truncated_csr
 
