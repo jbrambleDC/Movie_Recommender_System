@@ -102,7 +102,7 @@ def write_to_disk(ls, fn, verbose):
         wr = csv.writer(results)
         wr.writerow(ls)
 def pandas_to_hdf(df,fn,key):
-    df.to_hdf(fn_or_buf=fn, key=key)
+    df.to_hdf(path_or_buf=fn, key=key)
 
 def main():
     verbose = True
@@ -117,8 +117,8 @@ def main():
     col_centered_df = mean_center(df, col_means, 1, verbose)
     pearson_df_rows = pearson_similarity(row_centered_df, True, verbose)
     pearson_df_cols = pearson_similarity(col_centered_df, True, verbose)
-    pandas_to_hdf(pearson_df_rows, 'user_pearson_similarity_1period',verbose)
-    pandas_to_hdf(pearson_df_cols, 'user_pearson_similarity_1period',verbose)
+    write_df_to_disk(pearson_df_rows, 'user_pearson_similarity_1period_rows',verbose)
+    write_df_to_disk(pearson_df_cols, 'user_pearson_similarity_1period_cols',verbose)
     find_common_nonzero_count(pearson_df, verbose)
     print('---------------FINISHED-----------------')
     print('time is {}'.format(get_time()))
