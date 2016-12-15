@@ -81,6 +81,7 @@ def truncate_csr(csr, row=True, verbose=False):
     if verbose:
         print("Truncating csr")
     if row:
+        # deletes all empty rows (does this cause an indexing issue later?
         truncated_csr = csr[csr.getnnz(1) > 0]
     else:
         truncated_csr = csr[:, csr.getnnz(0) > 0]
